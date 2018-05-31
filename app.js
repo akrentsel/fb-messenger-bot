@@ -1,6 +1,7 @@
 'use strict';
 
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
+const CONF_THRESH = 0.8;
 
 // Dictionary that holds a mapping from user PSID to user name.
 var name_dict = {};
@@ -83,91 +84,62 @@ function handleMessage(sender_psid, received_message) {
   
   console.log(received_message);
   
-  // This bugs out the code.
-  // if (received_message.nlp) {
-  //   let ents = received_message.nlp.entities;
-  //   if (ents.greetings) {
-  //     if (ents.greetings[0].confidence > 0.8 && ents.greetings[0].value === 'true') {
-  //       console.log("Should reply with a greeting!");
-  //       callSendAPI(sender_psid, {"text": `Hi to you as well, ${name_dict[sender_psid]}. How can I help you?`});
-  //       return;
-  //     }
-  //   }
-  // }
+  let user_name = name_dict[sender_psid];
   
-  if (received_message.sticker_id && received_message.sticker_id === 369239383222810 || received_message.sticker_id === 369239263222822 || received_message.sticker_id === 369239343222814) {
-    response = {
-      "text": "I like you too!",
-    }
-  } else if (received_message.text) {
-    console.log('set the text');
-    response = {
-      "attachment":{
-      "type":"template",
-      "payload":{
-        "template_type":"generic",
-        "elements":[
 
-               {
-                "title":"Welcome!",
-                "image_url":"https://google.com",
-                "subtitle":"We have the right hat for everyone.",
-                "buttons":[
-                  {
-                    "type":"web_url",
-                    "url":"https://petersfancybrownhats.com",
-                    "title":"View Website"
-                  }             
-            ]
-          },
-           {
-            "title":"Welcome!",
-            "image_url":"https://google.com",
-            "subtitle":"We have the right hat for everyone.",
-            "buttons":[
-              {
-                "type":"web_url",
-                "url":"https://petersfancybrownhats.com",
-                "title":"View Website"
-              }             
-            ]
-          }
-        ]
-      }
-      }
-    }
-  } else if (received_message.attachments) {
-    
-    response = {
-      "text": "That's a cool attachment, but I don't know how to read it yet - sorry!"
-    }
-  
-    // Gets the URL of the message attachment
-    let attachment_url = received_message.attachments[0].payload.url;
-    response = {
-      "attachment": {
-        "type": "template",
-        "payload": {
-          "template_type": "generic",
-          "elements": [{
-            "title": "Is this the right picture?",
-            "subtitle": "Tap a button to answer.",
-            "image_url": attachment_url,
-            "buttons": [
-              {
-                "type": "postback",
-                "title": "Yes!",
-                "payload": "yes",
-              },
-              {
-                "type": "postback",
-                "title": "No!",
-                "payload": "no",
+  if (received_message.nlp) {
+    let ents = received_message.nlp.entities;
+
+    if (ents.intent) {
+      let val = ents.intent[0].value;
+      let conf = ents.intent[0].confidence;
+      if (conf > CONF_THRESH) {
+        if (val === 'tutorial') {
+          callSendAPI(sender_psid, generateTextResponse("You can ask me for details about what services HKN offers, about what apparel we sell, about paying for apparel, or about advertisements that you want sent out to HKN members."));
+          response = generateTextResponse("If none of those options work, you can ask me to talk to a human.");
+        } else if (val === 'services') {
+          callSendAPI(sender_psid, generateTextResponse("Check out all of the services that we have to offer!"));
+          response = getHKNServicesResponse();
+        } else if (val === 'apparel') {
+          response = {
+            "attachment":{
+              "type":"image", 
+              "payload":{
+                "is_reusable": true,
+                "url": "https://cdn.glitch.com/1315f565-68db-4335-a74f-7caa30cab2a6%2Feecs-merch.png?1527810348797"
               }
-            ],
-          }]
+            }
+          }
+          
+        } else if (val === 'buy') {
+          response = generateTextResponse("buy message");
+        } else if (val === 'human') {
+          response = generateTextResponse("Okay, let me get a human to answer this for you.");
         }
       }
+      console.log(ents.intent);
+    } else if (ents.greetings) {
+      if (ents.greetings[0].confidence > CONF_THRESH && ents.greetings[0].value === 'true') {
+        callSendAPI(sender_psid, {"text": `Hey, ${user_name}. What do you need help with? To find out about what I can do, just ask me.`});
+        return;
+      }
+    }
+  } else if (received_message.sticker_id) {
+    if (received_message.sticker_id === 369239383222810 || received_message.sticker_id === 369239263222822 || received_message.sticker_id === 369239343222814) {
+      response = {
+        "text": `I like you too, ${user_name}!`
+      }
+    } else {
+      response = {
+        "text": "I wish I could send stickers like that, but Facebook's API won't let me :("
+      }
+    }
+  } else if (received_message.text) {
+    response = {"text": "I don't really know what to do now..."};
+    
+  } else if (received_message.attachments) {
+    response = {
+      "text": "That's a cool attachment, but I don't know how to read it yet - sorry!"
     }
   }
   
@@ -236,5 +208,85 @@ function getUserInfo(sender_psid, _callback) {
       }
       _callback();
     });
+  } else {
+    _callback();
   }
+}
+
+function getHKNServicesResponse() {
+  let response = {
+      "attachment":{
+        "type":"template",
+        "payload":{
+          "template_type":"generic",
+          "elements":[
+             {
+              "title":"HKN Tutoring",
+              "image_url":"https://hkn.eecs.berkeley.edu/assets/hkn_logo-18c8c978b4a2a023ded5f5bd60133af10734ced26402bc37ed239a9a18e9c017.png",
+              "subtitle":"Free drop-in tutoring in Soda and Cory.",
+              "buttons":[
+                {
+                  "type":"web_url",
+                  "url":"https://hkn.eecs.berkeley.edu/tutor/",
+                  "title":"More details"
+                }             
+              ]
+            },
+            {
+              "title":"Review Sessions",
+              "image_url":"https://hkn.eecs.berkeley.edu/assets/hkn_logo-18c8c978b4a2a023ded5f5bd60133af10734ced26402bc37ed239a9a18e9c017.png",
+              "subtitle":"Review Sessions for midterms and finals for CS61ABC, CS70, and EE16AB",
+              "buttons":[
+                {
+                  "type":"web_url",
+                  "url":"https://hkn.eecs.berkeley.edu/tutor/calendar",
+                  "title":"See Calendar"
+                }             
+              ]
+            },
+            {
+              "title":"Exam Archive",
+              "image_url":"https://hkn.eecs.berkeley.edu/assets/hkn_logo-18c8c978b4a2a023ded5f5bd60133af10734ced26402bc37ed239a9a18e9c017.png",
+              "subtitle":"Midterms/finals with solutions from past semesters of most EE/CS classes.",
+              "buttons":[
+                {
+                  "type":"web_url",
+                  "url":"https://hkn.eecs.berkeley.edu/exams/",
+                  "title":"See Exam Archive"
+                }             
+              ]
+            },
+            {
+              "title":"Course Guide",
+              "image_url":"https://hkn.eecs.berkeley.edu/assets/hkn_logo-18c8c978b4a2a023ded5f5bd60133af10734ced26402bc37ed239a9a18e9c017.png",
+              "subtitle":"Visual flow-graph for order to take classes, as well as descriptions of most EECS courses written by students.",
+              "buttons":[
+                {
+                  "type":"web_url",
+                  "url":"https://hkn.eecs.berkeley.edu/courseguides",
+                  "title":"See Course Guides"
+                }             
+              ]
+            },
+             {
+              "title":"Department Tours",
+              "image_url":"https://hkn.eecs.berkeley.edu/assets/hkn_logo-18c8c978b4a2a023ded5f5bd60133af10734ced26402bc37ed239a9a18e9c017.png",
+              "subtitle":"Free tours for prospective students, run by current students.",
+              "buttons":[
+                {
+                  "type":"web_url",
+                  "url":"https://hkn.eecs.berkeley.edu/dept_tour",
+                  "title":"More Info"
+                }             
+              ]
+            }
+          ]
+        }
+      }
+    }
+  return response;
+}
+
+function generateTextResponse(text) {
+  return {"text": text};
 }
