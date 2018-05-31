@@ -81,20 +81,61 @@ app.get('/webhook', (req, res) => {
 function handleMessage(sender_psid, received_message) {
   let response;
   
-  if (received_message.nlp) {
-    let ents = received_message.nlp.entities;
-    if (ents.greetings) {
-      if (ents.greetings[0].confidence > 0.8 && ents.greetings[0].value === 'true') {
-        console.log("Should reply with a greeting!");
-        callSendAPI(sender_psid, {"text": `Hi to you as well, ${name_dict[sender_psid]}. How can I help you?`});
+  console.log(received_message);
+  
+  // This bugs out the code.
+  // if (received_message.nlp) {
+  //   let ents = received_message.nlp.entities;
+  //   if (ents.greetings) {
+  //     if (ents.greetings[0].confidence > 0.8 && ents.greetings[0].value === 'true') {
+  //       console.log("Should reply with a greeting!");
+  //       callSendAPI(sender_psid, {"text": `Hi to you as well, ${name_dict[sender_psid]}. How can I help you?`});
+  //       return;
+  //     }
+  //   }
+  // }
+  
+  if (received_message.sticker_id && received_message.sticker_id === 369239383222810 || received_message.sticker_id === 369239263222822 || received_message.sticker_id === 369239343222814) {
+    response = {
+      "text": "I like you too!",
+    }
+  } else if (received_message.text) {
+    console.log('set the text');
+    response = {
+      "attachment":{
+      "type":"template",
+      "payload":{
+        "template_type":"generic",
+        "elements":[
+
+               {
+                "title":"Welcome!",
+                "image_url":"https://google.com",
+                "subtitle":"We have the right hat for everyone.",
+                "buttons":[
+                  {
+                    "type":"web_url",
+                    "url":"https://petersfancybrownhats.com",
+                    "title":"View Website"
+                  }             
+            ]
+          },
+           {
+            "title":"Welcome!",
+            "image_url":"https://google.com",
+            "subtitle":"We have the right hat for everyone.",
+            "buttons":[
+              {
+                "type":"web_url",
+                "url":"https://petersfancybrownhats.com",
+                "title":"View Website"
+              }             
+            ]
+          }
+        ]
+      }
       }
     }
-  }
-  
-  if (received_message.text) {
-    response = { 
-      "text": `Hi ${name_dict[sender_psid]}, you sent the message: "${received_message.text}". Now send me an image!`
-    } 
   } else if (received_message.attachments) {
     
     response = {
@@ -102,32 +143,32 @@ function handleMessage(sender_psid, received_message) {
     }
   
     // Gets the URL of the message attachment
-    // let attachment_url = received_message.attachments[0].payload.url;
-    // response = {
-    //   "attachment": {
-    //     "type": "template",
-    //     "payload": {
-    //       "template_type": "generic",
-    //       "elements": [{
-    //         "title": "Is this the right picture?",
-    //         "subtitle": "Tap a button to answer.",
-    //         "image_url": attachment_url,
-    //         "buttons": [
-    //           {
-    //             "type": "postback",
-    //             "title": "Yes!",
-    //             "payload": "yes",
-    //           },
-    //           {
-    //             "type": "postback",
-    //             "title": "No!",
-    //             "payload": "no",
-    //           }
-    //         ],
-    //       }]
-    //     }
-    //   }
-    // }
+    let attachment_url = received_message.attachments[0].payload.url;
+    response = {
+      "attachment": {
+        "type": "template",
+        "payload": {
+          "template_type": "generic",
+          "elements": [{
+            "title": "Is this the right picture?",
+            "subtitle": "Tap a button to answer.",
+            "image_url": attachment_url,
+            "buttons": [
+              {
+                "type": "postback",
+                "title": "Yes!",
+                "payload": "yes",
+              },
+              {
+                "type": "postback",
+                "title": "No!",
+                "payload": "no",
+              }
+            ],
+          }]
+        }
+      }
+    }
   }
   
   callSendAPI(sender_psid, response);
@@ -153,6 +194,8 @@ function handlePostback(sender_psid, received_postback) {
 
 // Sends response messages via the Send API
 function callSendAPI(sender_psid, response) {
+  
+  console.log('called the send api');
   
   // Construct the message body
   let request_body = {
